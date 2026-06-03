@@ -5,19 +5,35 @@ import sys
 import os
 import ijson
 
-def process_companies(data_file, city=None, industry=None, require_website=False, no_website=False, limit=None, exclude_housing=False):
+TARGET_NICHES_PREFIXES = [
+    "41", "43",          # Rakennus & Remontointi
+    "96022", "86",       # Kauneus & Terveys
+    "56",                # Ravintola & Kahvila
+    "96021",             # Parturi & Kampaamo
+    "62", "63", "70",    # IT & Konsultointi
+    "742",               # Valokuvaus
+    "93130", "96040",    # Kuntoilu & Hyvinvointi
+    "452",               # Autokorjaamo
+    "49", "52"           # Kuljetus & Logistiikka
+]
+
+def process_companies(data_file, city=None, industry=None, require_website=False, no_website=False, limit=None, exclude_housing=False, only_ltd=False, target_niches=False):
     print(f"Luetaan ja suodatetaan massadataa tiedostosta {data_file} (tämä voi kestää hetken)...")
     
     if city:
         print(f"Kaupunki: {city}")
     if industry:
         print(f"Toimiala: {industry}")
+    if target_niches:
+        print(f"Toimiala: Vain valitut kohdetoimialat (Rakennus, IT, Ravintolat jne.)")
     if require_website:
         print(f"Vaatimus: Vain yritykset joilla on verkkosivu")
     if no_website:
         print(f"Vaatimus: Vain yritykset joilla ei ole verkkosivua")
     if exclude_housing:
         print(f"Vaatimus: Ei asunto- tai kiinteistöosakeyhtiöitä")
+    if only_ltd:
+        print(f"Vaatimus: Vain osakeyhtiöt (Oy)")
     if limit:
         print(f"Rajoitus: {limit} tulosta")
         
@@ -54,6 +70,23 @@ def process_companies(data_file, city=None, industry=None, require_website=False
                 if industry and industry != industry_code:
                     continue
                     
+                if target_niches and industry_code:
+                    if not any(industry_code.startswith(prefix) for prefix in TARGET_NICHES_PREFIXES):
+                        continue
+                elif target_niches and not industry_code:
+                    continue
+                    
+                # Yhtiömuoto
+                if only_ltd:
+                    company_forms = company.get("companyForms", [])
+                    is_ltd = False
+                    for form in company_forms:
+                        if form.get("type") in ["16", "17"]:
+                            is_ltd = True
+                            break
+                    if not is_ltd:
+                        continue
+                        
                 # Osoite (kaupunki)
                 addresses = company.get("addresses", [])
                 city_matches = False
@@ -131,6 +164,8 @@ def main():
     parser.add_argument("--require-website", "-w", help="Ota mukaan vain yritykset, joilla on verkkosivu", action="store_true")
     parser.add_argument("--no-website", "-nw", help="Ota mukaan vain yritykset, joilla EI ole verkkosivua", action="store_true")
     parser.add_argument("--exclude-housing", "-eh", help="Jätä pois asunto- ja kiinteistöosakeyhtiöt", action="store_true")
+    parser.add_argument("--only-ltd", "-ol", help="Ota mukaan vain Osakeyhtiöt (Oy)", action="store_true")
+    parser.add_argument("--target-niches", "-tn", help="Ota mukaan vain valitut kohdetoimialat (Rakennus, Kauneus, IT, Ravintolat yms.)", action="store_true")
     parser.add_argument("--limit", "-l", help="Rajoita tulosten määrää", type=int)
     parser.add_argument("--output", "-o", help="Tulostiedosto (oletus: leads.csv)", default="leads.csv", type=str)
     parser.add_argument("--data", "-d", help="Polku PRH:n massalataus json-tiedostoon", default="data_20260603.json", type=str)
@@ -149,7 +184,9 @@ def main():
         require_website=args.require_website,
         no_website=args.no_website,
         limit=args.limit,
-        exclude_housing=args.exclude_housing
+        exclude_housing=args.exclude_housing,
+        only_ltd=args.only_ltd,
+        target_niches=args.target_niches
     )
     
     save_to_csv(data, args.output)
