@@ -1,0 +1,22 @@
+# Datatiedostot (näitä ei laiteta gitiin koska ne ovat suuria)
+*.json
+*.csv
+*.zip
+
+# Käännetyt C-ohjelmat
+remove_housing_bin
+remove_housing_bin.exe
+
+# Python / Node
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.env
+node_modules/
+
+# Editorit ja käyttöjärjestelmä
+.vscode/
+.idea/
+.DS_Store
